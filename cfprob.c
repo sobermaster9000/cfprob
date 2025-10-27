@@ -167,38 +167,25 @@ void findLink(char *tag, int targRating) {
   cJSON *probs = cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_Parse(s.ptr), "result"), "problems");
   cJSON *prob, *rating, *contestId, *index;
 
+  cJSON *validProbs = cJSON_CreateArray();
+
   cJSON_ArrayForEach(prob, probs) {
     rating = cJSON_GetObjectItem(prob, "rating");
     contestId = cJSON_GetObjectItem(prob, "contestId");
     index = cJSON_GetObjectItem(prob, "index");
+
     if (rating == NULL || contestId == NULL || index == NULL || rating->valueint != targRating)
       continue;
 
-    char probLink[128];
-    snprintf(probLink, 128, "https://codeforces.com/problemset/problem/%d/%s", contestId->valueint, index->valuestring);
-
-    puts("[*] scanning blacklisted links...");
-
-    FILE *fptr = fopen("blacklist", "r");
-    if (fptr == NULL) {
-      fprintf(stderr, "[!] failed to check blacklist\n");
-      return;
-    }
-
-    char buf[128]; int blacklisted = 0;
-    while (fgets(buf, 128, fptr) != NULL) {
-      buf[sizeof(buf) - 1] = '\0';
-      if (!strcmp(buf, probLink)) {
-        blacklisted = 1; break;
-      }
-    }
-
-    fclose(fptr);
-    if (blacklisted) continue;
-
-    printf("[+] found problem link!\n%s\n", probLink);
-    break;
+    cJSON_AddItemReferenceToArray(validProbs, prob);
   };
+
+  srand(time(NULL));
+  prob = cJSON_GetArrayItem(validProbs, rand() % cJSON_GetArraySize(validProbs));
+
+  printf("[+] found problem link!\nhttps://codeforces.com/problemset/problem/%d/%s\n",
+         cJSON_GetObjectItem(prob, "contestId")->valueint,
+         cJSON_GetObjectItem(prob, "index")->valuestring);
 
   free(s.ptr);
 }
