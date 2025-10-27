@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <curl/curl.h>
 #include <cjson/cJSON.h>
 
@@ -54,117 +55,56 @@ size_t writefunc(void *ptr, size_t size, size_t nmemb, struct string *s);
 
 void findLink(char *tag, int targRating);
 
-void blacklist(char *probLink);
-
-void removeFromBlacklist(char *probLink);
-
-void showBlacklist();
-
 int main(int argc, char *argv[]) {
-  if (argc < 2) {
-    fprintf(stderr, "[!] missing arguments\n");
-    puts("[*] try -h for help");
-    exit(1);
-  }
 
-  if (strlen(argv[1]) != 2) {
-    fprintf(stderr, "[!] invalid flag\n");
-    puts("[*] try -h for help");
-    exit(1);
-  }
+  switch (argc) {
+    case 2:
 
-  if (argv[1][0] != '-') {
-    fprintf(stderr, "[!] invalid flag\n");
-    puts("[*] try -h for help");
-    exit(1);
-  }
+    if (strcmp(argv[1], "help")) {
+      fprintf(stderr, "[!] invalid argument\n");
+      puts("[*] try \"cfprob help\"");
+      exit(1);
+    }
 
-  switch (argv[1][1]) {
-    case 'h':
-      puts("valid flags:");
-      puts("-h\tdisplay this help menu");
-      puts("-f\tfind problem link, supply args: {tag} {rating}");
-      puts("-b\tblacklist problem link, supply args: {valid_problem_link}");
-      puts("-r\tremove problem link from blacklist, supply args: {valid problem limk}");
-      puts("-v\tview blacklist");
+    puts("<help string>");
 
-      puts("\nvalid tags:");
-      for (int i = 0; i < sizeof(tags) / sizeof(tags[0]); i++)
-        printf("%s\n", tags[i]);
-      
-      puts("\nvalid ratings:");
-      for (int i = 8; i <= 32; i++)
-        printf("%d\n", i * 100);
-
-      break;
-
-    case 'f':
-      if (argc != 4) {
-        fprintf(stderr, "[!] missing/invalid arguments\n");
-        puts("[*] try -h for help");
-        exit(1);
-      }
-
-      char tag[128]; strncpy(tag, argv[2], 128);
-      int rating = atoi(argv[3]);
-
-      int found = 0;
-      for (int i = 0; i < sizeof(tags) / sizeof(tags[0]); i++) {
-        if (!strcmp(tag, tags[i])) { found = 1; break; }
-      }
-
-      if (!found) {
-        fprintf(stderr, "[!] invalid problem tag\n");
-        puts("[*] try -h for help");
-        exit(1);
-      }
-
-      if (!(rating % 100 == 0 && 8 <= rating / 100 && rating / 100 <= 32)) {
-        fprintf(stderr, "[!] invalid rating\n");
-        puts("[*] try -h for help");
-        exit(1);
-      }
-
-      findLink(tag, rating);
-
-      break;
-
-    case 'b':
-      if (argc != 3) {
-        fprintf(stderr, "[!] missing/invalid arguments");
-        puts("try -h for help");
-        exit(1);
-      }
-      blacklist(argv[2]);
-      puts("[+] blacklist updated");
-      break;
-
-    case 'r':
-      if (argc != 3) {
-        fprintf(stderr, "[!] missing/invalid arguments");
-        puts("try -h for help");
-        exit(1);
-      }
-      removeFromBlacklist(argv[2]);
-      puts("[+] blacklist updated");
-      break;
+    break;
     
-    case 'v':
-      if (argc != 2) {
-        fprintf(stderr, "[!] missing/invalid arguments\n");
-        puts("try -h for help");
-        exit(1);
-      }
-      showBlacklist();
-      break;
+    case 3:
+
+    char tag[128]; strncpy(tag, argv[1], 128);
+    int rating = atoi(argv[2]);
+  
+    int found = 0;
+    for (int i = 0; i < sizeof(tags) / sizeof(tags[0]); i++) {
+      if (!strcmp(tag, tags[i])) { found = 1; break; }
+    }
+  
+    if (!found) {
+      fprintf(stderr, "[!] invalid problem tag\n");
+      puts("[*] try \"cfprob help\"");
+      exit(1);
+    }
+  
+    if (!(rating % 100 == 0 && 8 <= rating / 100 && rating / 100 <= 32)) {
+      fprintf(stderr, "[!] invalid rating\n");
+      puts("[*] try \"cfprob help\"");
+      exit(1);
+    }
+  
+    findLink(tag, rating);
+
+    break;
 
     default:
-      fprintf(stderr, "[!] invalid flag\n");
-      puts("[*] try -h for help");
-      exit(1);
+    
+    fprintf(stderr, "[!] invalid number of arguments\n");
+    puts("[*] try \"cfprob help\"");
+    exit(1);
   }
 
   return 0;
+
 }
 
 void init_string(struct string *s) {
@@ -245,17 +185,6 @@ void findLink(char *tag, int targRating) {
       return;
     }
 
-    // char buf[128]; int blacklisted = 0, i = 0;
-    // while ((buf[i] = fgetc(fptr)) != EOF) {
-    //   if (buf[i] == '\n') {
-    //     buf[i] = '\0'; i = -1;
-    //     if (!strcmp(probLink, buf)) {
-    //       blacklisted = 1; break;
-    //     }
-    //   }
-    //   i++;
-    // }
-
     char buf[128]; int blacklisted = 0;
     while (fgets(buf, 128, fptr) != NULL) {
       buf[sizeof(buf) - 1] = '\0';
@@ -272,57 +201,4 @@ void findLink(char *tag, int targRating) {
   };
 
   free(s.ptr);
-}
-
-void blacklist(char *probLink) {
-  FILE *fptr = fopen("blacklist", "a");
-  if (fptr == NULL) {
-    fprintf(stderr, "[!] failed to open blacklist\n");
-    exit(1);
-  }
-  fprintf(fptr, "%s\n", probLink);
-  fclose(fptr);
-}
-
-void removeFromBlacklist(char *probLink) {
-  FILE *fptr = fopen("blacklist", "r+");
-  if (fptr == NULL) {
-    fprintf(stderr, "[!] failed to open blacklist\n");
-    exit(1);
-  }
-
-  struct string newbuf;
-  init_string(&newbuf);
-  char buf[128]; int len, found = 0;
-  while (fgets(buf, 128, fptr) != NULL) {
-    len = strlen(buf); buf[len - 1] ='\0';
-    if (!strcmp(buf, probLink)) { found = 1; continue; }
-    buf[len - 1] = '\n';
-    writefunc(buf, 1, len, &newbuf);
-  }
-
-  printf("%s\n", newbuf); // fix this, sometimes prints garbage at the end
-
-  if (!found)
-    fprintf(stderr, "[!] problem link not in blacklist\n");
-}
-
-void showBlacklist() {
-  FILE *fptr = fopen("blacklist", "r");
-  if (fptr == NULL) {
-    fprintf(stderr , "[!] failed to open blacklist\n");
-    exit(1);
-  }
-
-  // get size of file
-  fseek(fptr, 0, SEEK_END);
-  int sz = ftell(fptr);
-  rewind(fptr);
-
-  char *buf = malloc(sz);
-  fread(buf, 1, sz, fptr);
-  buf[sz] = '\0';
-
-  puts("blacklisted links:");
-  printf("%s\n", buf);
 }
