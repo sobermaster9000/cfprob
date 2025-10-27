@@ -1,1 +1,1 @@
-gcc cfprob.c -ocfprob.exe -IC:\Coding\vcpkg\installed\x64-windows\include -LC:\Coding\vcpkg\installed\x64-windows\lib -lcurl -lcjson
+gcc cfprob.c -ocfprob.exe -I.\include -L.\lib -lcurl -lcjson
