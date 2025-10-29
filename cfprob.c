@@ -57,23 +57,39 @@ void findLink(char *tag, int targRating);
 
 int main(int argc, char *argv[]) {
 
+  char tag[128]; int rating;
+
   switch (argc) {
     case 2:
 
-    if (strcmp(argv[1], "help")) {
-      fprintf(stderr, "[!] invalid argument\n");
-      puts("[*] try \"cfprob help\"");
+    if (!strcmp(argv[1], "help")) {
+      puts("cfprob [tag] [rating]\tfor finding a problem with specific tag and rating");
+      puts("cfprob [rating]\t\tfor finding a problem with random tag and specific rating");
+      puts("cfprob help\t\tfor showing this help message");
+      puts("\nvalid ratings are multiples of 100 from 800 to 3200 inclusive");
+      puts("valid tags are:");
+      for (int i = 0; i < sizeof(tags) / sizeof(tags[0]); i++) {
+        printf(" - %s\n", tags[i]);
+      }
+      break;
+    }
+
+    rating = atoi(argv[1]);
+    if (!(rating % 100 == 0 && 8 <= rating / 100 && rating / 100 <= 32)) {
+      fprintf(stderr, "invalid rating\n");
+      puts("try \"cfprob help\"");
       exit(1);
     }
 
-    puts("<help string>");
-
+    srand(time(NULL));
+    strncpy(tag, tags[rand() % (sizeof(tags) / sizeof(tags[0]))], 128);
+    findLink(tag, rating);
     break;
-    
+
     case 3:
 
-    char tag[128]; strncpy(tag, argv[1], 128);
-    int rating = atoi(argv[2]);
+    strncpy(tag, argv[1], 128);
+    rating = atoi(argv[2]);
   
     int found = 0;
     for (int i = 0; i < sizeof(tags) / sizeof(tags[0]); i++) {
@@ -81,14 +97,14 @@ int main(int argc, char *argv[]) {
     }
   
     if (!found) {
-      fprintf(stderr, "[!] invalid problem tag\n");
-      puts("[*] try \"cfprob help\"");
+      fprintf(stderr, "invalid problem tag\n");
+      puts("try \"cfprob help\"");
       exit(1);
     }
   
     if (!(rating % 100 == 0 && 8 <= rating / 100 && rating / 100 <= 32)) {
-      fprintf(stderr, "[!] invalid rating\n");
-      puts("[*] try \"cfprob help\"");
+      fprintf(stderr, "invalid rating\n");
+      puts("try \"cfprob help\"");
       exit(1);
     }
   
@@ -98,8 +114,8 @@ int main(int argc, char *argv[]) {
 
     default:
     
-    fprintf(stderr, "[!] invalid number of arguments\n");
-    puts("[*] try \"cfprob help\"");
+    fprintf(stderr, "invalid number of arguments\n");
+    puts("try \"cfprob help\"");
     exit(1);
   }
 
@@ -111,7 +127,7 @@ void init_string(struct string *s) {
   s->len = 0;
   s->ptr = malloc(s->len + 1);
   if (s->ptr == NULL) {
-    fprintf(stderr, "malloc() failed\n");
+    fprintf(stderr, "malloc() failed!\n");
     exit(1);
   }
   s->ptr[0] = '\0';
@@ -121,7 +137,7 @@ size_t writefunc(void *ptr, size_t size, size_t nmemb, struct string *s) {
   size_t new_len = s->len + size * nmemb;
   s->ptr = realloc(s->ptr, new_len + 1);
   if (s->ptr == NULL) {
-    fprintf(stderr, "realloc() failed\n");
+    fprintf(stderr, "realloc() failed!\n");
     exit(1);
   }
   memcpy(s->ptr + s->len, ptr, size * nmemb);
@@ -134,22 +150,22 @@ void findLink(char *tag, int targRating) {
   char apiLink[128];
   snprintf(apiLink, 128, "https://codeforces.com/api/problemset.problems?tags=%s", tag);
 
-  puts("[*] initializing curl...");
+  puts("initializing curl...");
 
   CURL *curl = curl_easy_init();
   CURLcode res;
 
   if (curl == NULL) {
-    fprintf(stderr, "[!] failed to initialize curl\n");
+    fprintf(stderr, "failed to initialize curl!\n");
     exit(1);
   }
 
-  puts("[+] curl successfully initialized!");
+  puts("curl successfully initialized!");
 
   struct string s;
   init_string(&s);
 
-  puts("[*] processing api call...");
+  puts("processing api call...");
 
   curl_easy_setopt(curl, CURLOPT_URL, "https://codeforces.com/api/problemset.problems?tags=data+structures");
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
@@ -161,8 +177,8 @@ void findLink(char *tag, int targRating) {
   
   curl_easy_cleanup(curl);
 
-  puts("[+] api call successful!");
-  puts("[*] parsing JSON response...");
+  puts("api call successful!");
+  puts("parsing JSON response...");
 
   cJSON *probs = cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_Parse(s.ptr), "result"), "problems");
   cJSON *prob, *rating, *contestId, *index;
@@ -183,7 +199,7 @@ void findLink(char *tag, int targRating) {
   srand(time(NULL));
   prob = cJSON_GetArrayItem(validProbs, rand() % cJSON_GetArraySize(validProbs));
 
-  printf("[+] found problem link!\nhttps://codeforces.com/problemset/problem/%d/%s\n",
+  printf("found problem link!\nhttps://codeforces.com/problemset/problem/%d/%s\n",
          cJSON_GetObjectItem(prob, "contestId")->valueint,
          cJSON_GetObjectItem(prob, "index")->valuestring);
 
