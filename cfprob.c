@@ -93,9 +93,9 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
 
-    rating = (rand() % 24 + 8) * 100;
+    rating = (rand() % 25 + 8) * 100;
     findLink(tag, rating);
-    
+
     break;
 
     case 3:
