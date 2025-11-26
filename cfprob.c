@@ -4,6 +4,7 @@
 #include <time.h>
 #include <curl/curl.h>
 #include <cjson/cJSON.h>
+#include <windows.h>
 
 const char *tags[] = {
   "implementation",
@@ -49,10 +50,9 @@ struct string {
   size_t len;
 };
 
+void copyToClipboard(char* string);
 void init_string(struct string *s);
-
 size_t writefunc(void *ptr, size_t size, size_t nmemb, struct string *s);
-
 void findLink(char *tag, int targRating);
 
 int main(int argc, char *argv[]) {
@@ -67,8 +67,8 @@ int main(int argc, char *argv[]) {
       puts("cfprob [rating]\t\tfor finding a problem with random tag and specific rating");
       puts("cfprob [tag]\t\tfor finding a problem with specific tag and random rating");
       puts("cfprob help\t\tfor showing this help message");
-      puts("\nvalid ratings are multiples of 100 from 800 to 3200 inclusive");
-      puts("valid tags are:");
+      puts("\nValid ratings are multiples of 100 from 800 to 3200 inclusive");
+      puts("Valid tags are:");
       for (int i = 0; i < sizeof(tags) / sizeof(tags[0]); i++) {
         printf(" - %s\n", tags[i]);
       }
@@ -88,8 +88,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (!found) {
-      fprintf(stderr, "invalid tag/rating\n");
-      puts("try \"cfprob help\"");
+      fprintf(stderr, "Invalid tag/rating\n");
+      puts("Try \"cfprob help\"");
       exit(1);
     }
 
@@ -109,14 +109,14 @@ int main(int argc, char *argv[]) {
     }
   
     if (!found) {
-      fprintf(stderr, "invalid problem tag\n");
-      puts("try \"cfprob help\"");
+      fprintf(stderr, "Invalid problem tag\n");
+      puts("Try \"cfprob help\"");
       exit(1);
     }
   
     if (!(rating % 100 == 0 && 8 <= rating / 100 && rating / 100 <= 32)) {
-      fprintf(stderr, "invalid rating\n");
-      puts("try \"cfprob help\"");
+      fprintf(stderr, "Invalid rating\n");
+      puts("Try \"cfprob help\"");
       exit(1);
     }
   
@@ -126,13 +126,33 @@ int main(int argc, char *argv[]) {
 
     default:
     
-    fprintf(stderr, "invalid number of arguments\n");
-    puts("try \"cfprob help\"");
+    fprintf(stderr, "Invalid number of arguments\n");
+    puts("Try \"cfprob help\"");
     exit(1);
   }
 
   return 0;
 
+}
+
+void copyToClipboard(char* string) {
+  const size_t len = strlen(string) + 1;
+  HGLOBAL hMem =  GlobalAlloc(GMEM_MOVEABLE, len);
+  if (hMem == NULL) {
+    fprintf(stderr, "GlobalAlloc() failed!\n");
+    exit(1);
+  }
+  memcpy(GlobalLock(hMem), string, len);
+  GlobalUnlock(hMem);
+  if (!OpenClipboard(0)) {
+    fprintf(stderr, "OpenClipboard() failed!\n");
+    GlobalFree(hMem);
+    exit(1);
+  }
+  EmptyClipboard();
+  SetClipboardData(CF_TEXT, hMem);
+  CloseClipboard();
+  puts("Copied problem link to clipboard!");
 }
 
 void init_string(struct string *s) {
@@ -162,22 +182,22 @@ void findLink(char *tag, int targRating) {
   char apiLink[128];
   snprintf(apiLink, 128, "https://codeforces.com/api/problemset.problems?tags=%s", tag);
 
-  puts("initializing curl...");
+  puts("Initializing cURL...");
 
   CURL *curl = curl_easy_init();
   CURLcode res;
 
   if (curl == NULL) {
-    fprintf(stderr, "failed to initialize curl!\n");
+    fprintf(stderr, "Failed to initialize cURL!\n");
     exit(1);
   }
 
-  puts("curl successfully initialized!");
+  puts("cURL successfully initialized!");
 
   struct string s;
   init_string(&s);
 
-  puts("processing api call...");
+  puts("Processing API call...");
 
   curl_easy_setopt(curl, CURLOPT_URL, "https://codeforces.com/api/problemset.problems?tags=data+structures");
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);
@@ -189,8 +209,8 @@ void findLink(char *tag, int targRating) {
   
   curl_easy_cleanup(curl);
 
-  puts("api call successful!");
-  puts("parsing JSON response...");
+  puts("API call successful!");
+  puts("Parsing JSON response...");
 
   cJSON *probs = cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_Parse(s.ptr), "result"), "problems");
   cJSON *prob, *rating, *contestId, *index;
@@ -210,9 +230,14 @@ void findLink(char *tag, int targRating) {
 
   prob = cJSON_GetArrayItem(validProbs, rand() % cJSON_GetArraySize(validProbs));
 
-  printf("found problem link!\nhttps://codeforces.com/problemset/problem/%d/%s\n",
-         cJSON_GetObjectItem(prob, "contestId")->valueint,
-         cJSON_GetObjectItem(prob, "index")->valuestring);
+  char link[128];
+  snprintf(link, 128, "https://codeforces.com/problemset/problem/%d/%s",
+           cJSON_GetObjectItem(prob, "contestId")->valueint,
+           cJSON_GetObjectItem(prob, "index")->valuestring);
+
+  printf("Found problem link!\n%s\n", link);
+
+  copyToClipboard(link);
 
   free(s.ptr);
 }
